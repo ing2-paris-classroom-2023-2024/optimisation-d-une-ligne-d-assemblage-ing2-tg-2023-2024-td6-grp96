@@ -125,3 +125,115 @@ int main() {
     optimiserLigneAssemblage();
     return 0;
 }
+
+
+
+
+**********************************************************************************************************************************************
+**********************************************************************************************************************************************
+**********************************************************************************************************************************************
+**********************************************************************************************************************************************
+**********************************************************************************************************************************************
+**********************************************************************************************************************************************
+CODE FINALE DE LA CONTRAINTE D'EXCLUSION NE PAS TOUCHER (penser à verifier que le fichier texte est bien dans le cmakelistedebug 
+et que le nom/format est respecté) : 
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_OPERATIONS 35
+#define MAX_STATIONS 35
+
+int exclusion[MAX_OPERATIONS][MAX_OPERATIONS];
+
+void lireExclusions(FILE *fichier) {
+    int op1, op2;
+    while (fscanf(fichier, "%d %d", &op1, &op2) != EOF) {
+        exclusion[op1 - 1][op2 - 1] = 1; // Marquer les contraintes d'exclusion
+        exclusion[op2 - 1][op1 - 1] = 1; // Si symétrique
+    }
+}
+
+int stationEstValide(int station[], int operation, int numOperations) {
+    for (int i = 0; i < numOperations; ++i) {
+        if (station[i] != 0 && exclusion[station[i] - 1][operation]) {
+            return 0; // Contrainte d'exclusion violée
+        }
+    }
+    return 1; // Aucune contrainte d'exclusion violée
+}
+
+void optimiserLigneAssemblage() {
+    FILE *fichier = fopen("exclusions.txt", "r");
+    if (fichier == NULL) {
+        printf("Impossible d'ouvrir le fichier des exclusions.\n");
+        return;
+    }
+
+    lireExclusions(fichier);
+    fclose(fichier);
+
+    int stations[MAX_STATIONS][MAX_OPERATIONS] = {{0}};
+    int numStations = 0;
+
+    for (int operation = 1; operation <= MAX_OPERATIONS; ++operation) {
+        int trouve = 0;
+        for (int station = 0; station < numStations; ++station) {
+            if (stationEstValide(stations[station], operation - 1, operation)) {
+                stations[station][operation - 1] = operation;
+                trouve = 1;
+                break;
+            }
+        }
+        if (!trouve) {
+            stations[numStations][0] = operation;
+            numStations++;
+        }
+    }
+
+    for (int i = 0; i < numStations; ++i) {
+        printf("Station %d : ", i + 1);
+        for (int j = 0; j < MAX_OPERATIONS; ++j) {
+            if (stations[i][j] != 0) {
+                printf("%d ", stations[i][j]);
+            }
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    optimiserLigneAssemblage();
+    return 0;
+}
+
+AFFICHAGE DANS LA CONSOLE : 
+
+C:\Users\Administrateur\CLionProjects\ing2projet1\cmake-build-debug\ing2projet1.exe
+Station 1 : 1 2 3 5 6 7 8 9 10 12 14 16 18 19 23 25 26 27 28 29 30 31 34 35
+Station 2 : 4 11 13 17 20 21 22 24 32 33
+Station 3 : 15
+
+Process finished with exit code 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
