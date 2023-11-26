@@ -111,6 +111,7 @@ int main() {
 }
 
 /*
+# Fonction pour lire les opérations à partir du fichier
 def lire_fichier_operations(chemin_fichier):
     operations = {}
     with open(chemin_fichier, 'r') as fichier:
@@ -120,6 +121,7 @@ def lire_fichier_operations(chemin_fichier):
             operations[num_operation] = temps_execution
     return operations
 
+# Fonction pour lire les précédences à partir du fichier
 def lire_fichier_precedences(chemin_fichier):
     precedences = []
     with open(chemin_fichier, 'r') as fichier:
@@ -129,11 +131,14 @@ def lire_fichier_precedences(chemin_fichier):
             precedences.append((operation_precedente, operation_suivante))
     return precedences
 
+# Fonction pour lire le temps de cycle à partir du fichier
 def lire_temps_cycle(chemin_fichier):
     with open(chemin_fichier, 'r') as fichier:
         temps_cycle = float(fichier.read().strip())
     return temps_cycle
 
+
+# Fonction principale pour parcourir le graphe et vérifier le temps de cycle
 def parcourir_graphe(operations, precedences, temps_cycle):
     for branche in precedences:
         temps_branche = 0
@@ -145,6 +150,7 @@ def parcourir_graphe(operations, precedences, temps_cycle):
         else:
             print(f"La branche {branche} respecte le temps de cycle.")
 
+# Point d'entrée du programme
 if __name__ == "__main__":
     chemin_operations = "operations.txt"
     chemin_precedences = "precedences.txt"
