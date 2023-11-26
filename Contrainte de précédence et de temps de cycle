@@ -109,3 +109,50 @@ int main() {
     fclose(fichierTempsCycle);
     return 0;
 }
+
+/*
+def lire_fichier_operations(chemin_fichier):
+    operations = {}
+    with open(chemin_fichier, 'r') as fichier:
+        for ligne in fichier:
+            ligne = ligne.strip().split()
+            num_operation, temps_execution = int(ligne[0]), float(ligne[1])
+            operations[num_operation] = temps_execution
+    return operations
+
+def lire_fichier_precedences(chemin_fichier):
+    precedences = []
+    with open(chemin_fichier, 'r') as fichier:
+        for ligne in fichier:
+            ligne = ligne.strip().split()
+            operation_precedente, operation_suivante = int(ligne[0]), int(ligne[1])
+            precedences.append((operation_precedente, operation_suivante))
+    return precedences
+
+def lire_temps_cycle(chemin_fichier):
+    with open(chemin_fichier, 'r') as fichier:
+        temps_cycle = float(fichier.read().strip())
+    return temps_cycle
+
+def parcourir_graphe(operations, precedences, temps_cycle):
+    for branche in precedences:
+        temps_branche = 0
+        for operation in branche:
+            temps_branche += operations[operation]
+            if temps_branche > temps_cycle:
+                print(f"La branche {branche} dépasse le temps de cycle !")
+                break
+        else:
+            print(f"La branche {branche} respecte le temps de cycle.")
+
+if __name__ == "__main__":
+    chemin_operations = "operations.txt"
+    chemin_precedences = "precedences.txt"
+    chemin_temps_cycle = "temps_cycle.txt"
+
+    operations = lire_fichier_operations(chemin_operations)
+    precedences = lire_fichier_precedences(chemin_precedences)
+    temps_cycle = lire_temps_cycle(chemin_temps_cycle)
+
+    parcourir_graphe(operations, precedences, temps_cycle)
+*/
