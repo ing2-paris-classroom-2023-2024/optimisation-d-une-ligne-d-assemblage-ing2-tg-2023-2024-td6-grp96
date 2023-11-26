@@ -1,1 +1,76 @@
+#include <stdio.h>
+#include <stdlib.h>
 
+// Structure pour représenter une paire d'opérations
+typedef struct {
+    int op1;
+    int op2;
+} Precedence;
+
+// Fonction pour vérifier les contraintes de précédence
+int verifierContraintesPrecedence(FILE *fichierPrecedences, int nombreOperations) {
+    // Lire le nombre d'arcs du graphe de précédence depuis le fichier
+    int nombreArcs;
+    fscanf(fichierPrecedences, "%d", &nombreArcs);
+
+    // Créer une matrice d'adjacence pour représenter le graphe de précédence
+    int **graphe = malloc(nombreOperations * sizeof(int *));
+    for (int i = 0; i < nombreOperations; i++) {
+        graphe[i] = malloc(nombreOperations * sizeof(int));
+        for (int j = 0; j < nombreOperations; j++) {
+            graphe[i][j] = 0;
+        }
+    }
+
+    // Lire les arcs du graphe de précédence depuis le fichier
+    Precedence *arcs = malloc(nombreArcs * sizeof(Precedence));
+    for (int i = 0; i < nombreArcs; i++) {
+        fscanf(fichierPrecedences, "%d %d", &arcs[i].op1, &arcs[i].op2);
+        graphe[arcs[i].op1 - 1][arcs[i].op2 - 1] = 1; // Mettre à jour la matrice d'adjacence
+    }
+
+    // Vérifier les contraintes de précédence
+    int violation = 0; // Indique s'il y a une violation des contraintes
+    for (int i = 0; i < nombreArcs; i++) {
+        if (!graphe[arcs[i].op1 - 1][arcs[i].op2 - 1])
+        {
+            printf("Violation de la contrainte de précédence : Opération %d doit précéder Opération %d\n", arcs[i].op1, arcs[i].op2);
+            violation = 1;
+        }
+    }
+
+    // Libération de la mémoire
+    free(arcs);
+    for (int i = 0; i < nombreOperations; i++) {
+        free(graphe[i]);
+    }
+    free(graphe);
+
+    return violation;
+}
+
+int main() {
+    // Exemple d'utilisation
+    FILE *fichierPrecedences = fopen("precedences.txt", "r");
+
+    if (fichierPrecedences == NULL) {
+        perror("Erreur lors de l'ouverture du fichier de précédences");
+        return EXIT_FAILURE;
+    }
+
+    // Nombre d'opérations (à adapter selon votre modèle)
+    int nombreOperations = 35;
+
+    int violation = verifierContraintesPrecedence(fichierPrecedences, nombreOperations);
+
+    if (violation)
+    {
+        printf("Il y a des violations des contraintes de précédence.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        printf("Aucune violation des contraintes de précédence.\n");
+    }
+
+    fclose(fichierPrecedences);
+    return 0;
+}
