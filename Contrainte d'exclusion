@@ -55,3 +55,73 @@ void graphe_afficher(Graphe* graphe);
 
 #endif // GRAPHE_H_INCLUDED
 
+
+*********************************************************************************************************************************
+*********************************************************************************************************************************
+Partie Baptiste :
+
+#include <stdio.h>
+
+#define MAX_OPERATIONS 35
+#define MAX_STATIONS 10
+
+int exclusion[MAX_OPERATIONS][MAX_OPERATIONS];
+
+void lireExclusions(FILE *fichier) {
+    int op1, op2;
+    while (fscanf(fichier, "%d %d", &op1, &op2) != EOF) {
+        exclusion[op1 - 1][op2 - 1] = 1; // Marquer les contraintes d'exclusion
+        exclusion[op2 - 1][op1 - 1] = 1; // Si symétrique
+    }
+}
+
+int stationDisponible(int operation, int station, int stations[]) {
+    int i;
+    for (i = 0; i < MAX_OPERATIONS; ++i) {
+        if (stations[i] == station && exclusion[operation][i]) {
+            return 0; // Contrainte d'exclusion violée
+        }
+    }
+    return 1; // Aucune contrainte d'exclusion violée
+}
+
+int assignerStation(int operation, int stations[]) {
+    int i;
+    for (i = 0; i < MAX_STATIONS; ++i) {
+        if (stations[i] == 0 && stationDisponible(operation, i, stations)) {
+            stations[i] = operation; // Assigner l'opération à la station
+            return 1; // Opération affectée avec succès
+        }
+    }
+    return 0; // Affectation impossible
+}
+
+void optimiserLigneAssemblage() {
+    FILE *fichier = fopen("exclusions.txt", "r");
+    if (fichier == NULL) {
+        printf("Impossible d'ouvrir le fichier des exclusions.\n");
+        return;
+    }
+
+    lireExclusions(fichier);
+    fclose(fichier);
+
+    int stations[MAX_STATIONS] = {0}; // Initialiser les stations à 0 (non affectées)
+    int operations[MAX_OPERATIONS]; // Initialiser les opérations
+
+    int i;
+    for (i = 0; i < MAX_OPERATIONS; ++i) {
+        if (!assignerStation(operations[i], stations)) {
+            printf("Impossible d'affecter l'opération %d\n", operations[i]);
+            // Gérer le cas où une opération ne peut pas être affectée
+        }
+    }
+
+    printf("Affectation des opérations aux stations terminée.\n");
+    // Afficher ou utiliser les résultats de l'optimisation
+}
+
+int main() {
+    optimiserLigneAssemblage();
+    return 0;
+}
