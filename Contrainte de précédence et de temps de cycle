@@ -152,13 +152,16 @@ def parcourir_graphe(operations, precedences, temps_cycle):
 
 # Point d'entrée du programme
 if __name__ == "__main__":
+    # Chemins des fichiers
     chemin_operations = "operations.txt"
     chemin_precedences = "precedences.txt"
     chemin_temps_cycle = "temps_cycle.txt"
 
+    # Lecture des données à partir des fichiers
     operations = lire_fichier_operations(chemin_operations)
     precedences = lire_fichier_precedences(chemin_precedences)
     temps_cycle = lire_temps_cycle(chemin_temps_cycle)
 
+    # Appel de la fonction principale
     parcourir_graphe(operations, precedences, temps_cycle)
 */
