@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,25 +22,29 @@ typedef struct {
 void lireContraintesDepuisFichier(const char *fichier, LigneAssemblage *ligne) {
     FILE *file = fopen(fichier, "r");
     if (file == NULL) {
-        perror("Erreur lors de l'ouverture du fichier des contraintes de precedence");
+        perror("Erreur lors de l'ouverture du fichier des contraintes de précédence");
         exit(EXIT_FAILURE);
     }
 
     int predecesseur, operation;
     int nb_contraintes = 0;
 
+    // Lecture du fichier pour obtenir le nombre de contraintes
     while (fscanf(file, "%d %d", &predecesseur, &operation) == 2) {
         nb_contraintes++;
     }
 
+    // Allouer de la mémoire pour stocker les contraintes
     ligne->contraintes = malloc(nb_contraintes * sizeof(ContraintePrecedence));
     if (ligne->contraintes == NULL) {
         perror("Erreur lors de l'allocation mémoire pour les contraintes de précédence");
         exit(EXIT_FAILURE);
     }
 
+    // Rembobiner le fichier pour lire à partir du début
     rewind(file);
 
+    // Lire et stocker les contraintes
     for (int i = 0; i < nb_contraintes; i++) {
         fscanf(file, "%d %d", &ligne->contraintes[i].predecesseur, &ligne->contraintes[i].operation);
     }
@@ -59,12 +64,14 @@ void lireTempsDepuisFichier(const char *fichier, double *temps, int taille) {
     int operation;
     double tempsOperation;
 
+    // Lecture du fichier pour obtenir les temps d'opérations
     while (fscanf(file, "%d %lf", &operation, &tempsOperation) == 2) {
         temps[operation] = tempsOperation;
     }
 
     fclose(file);
 }
+
 
 void lireTempsCycleDepuisFichier(const char *fichier, double *tempsCycle) {
     FILE *file = fopen(fichier, "r");
@@ -73,21 +80,25 @@ void lireTempsCycleDepuisFichier(const char *fichier, double *tempsCycle) {
         exit(EXIT_FAILURE);
     }
 
+    // Lecture du fichier pour obtenir le temps de cycle
     fscanf(file, "%lf", tempsCycle);
 
     fclose(file);
 }
 
+
 Station* regrouperEnStations(LigneAssemblage *ligne) {
     int maxOperation = 0;
     int numStation = 1;
 
+    // Trouver le maximum d'opérations
     for (int i = 0; i < ligne->nb_contraintes; i++) {
         if (ligne->contraintes[i].operation > maxOperation) {
             maxOperation = ligne->contraintes[i].operation;
         }
     }
 
+    // Allouer de la mémoire pour les stations
     Station *stations = malloc((maxOperation + 1) * sizeof(Station));
     for (int i = 0; i <= maxOperation; i++) {
         stations[i].operations = NULL;
@@ -96,6 +107,7 @@ Station* regrouperEnStations(LigneAssemblage *ligne) {
         stations[i].tempsTotal = 0.0;
     }
 
+    // Regrouper les opérations en stations
     for (int i = 0; i < ligne->nb_contraintes; i++) {
         int operationPredecesseur = ligne->contraintes[i].predecesseur;
         int operationActuelle = ligne->contraintes[i].operation;
@@ -114,19 +126,83 @@ Station* regrouperEnStations(LigneAssemblage *ligne) {
     return stations;
 }
 
-void afficherTempsStations(Station *stations, int maxOperation) {
-    double temps[100]; // Adapté à la taille de vos opérations
-    for (int i = 0; i < 100; i++) {
-        temps[i] = 0.0; // Initialisation des temps à zéro
-    }
+
+void afficherStationsFinales(Station *stations, int maxOperation, double tempsCycle, double *temps) {
+    int countFinalStations = 0;
+
     for (int i = 1; i <= maxOperation; i++) {
         if (stations[i].numStation != 0) {
             double tempsTotalStation = 0.0;
-            for (int j = 0; j < stations[i].nb_operations; j++) {
+
+            // Vérifier si la station a été divisée
+            if (stations[i].nb_operations > 1) {
+                int j = 0;
+                while (j < stations[i].nb_operations) {
+                    double tempsTotal = 0.0;
+                    while (j < stations[i].nb_operations && tempsTotal <= tempsCycle) {
+                        tempsTotal += temps[stations[i].operations[j]];
+                        j++;
+                    }
+                    printf("Station %d - Temps total : %.2f\n", countFinalStations + 1, tempsTotal);
+                    countFinalStations++;
+                }
+            } else {
+                // Ajouter le temps de chaque opération à la station
+                int j = 0;
                 tempsTotalStation += temps[stations[i].operations[j]];
+                while (j < stations[i].nb_operations && tempsTotalStation <= tempsCycle) {
+                    tempsTotalStation += temps[stations[i].operations[j]];
+                    j++;
+                }
+
+                // Si le temps total de la station est inférieur ou égal au temps de cycle, afficher la station
+                if (tempsTotalStation <= tempsCycle) {
+                    printf("Station %d - Temps total : %.2f\n", stations[i].numStation, tempsTotalStation);
+                    countFinalStations++;
+                }
             }
-            stations[i].tempsTotal = tempsTotalStation;
-            printf("Station %d - Temps total : %.2f\n", stations[i].numStation, stations[i].tempsTotal);
+        }
+    }
+
+    printf("Nombre de stations finales : %d\n", countFinalStations);
+}
+
+
+void diviserStations(Station *stations, int maxOperation, double tempsCycle, double *temps) {
+    for (int i = 1; i <= maxOperation; i++) {
+        if (stations[i].numStation != 0) {
+            double tempsTotalStation = 0.0;
+
+            int j = 0;
+            while (j < stations[i].nb_operations) {
+                tempsTotalStation += temps[stations[i].operations[j]];
+                if (tempsTotalStation > tempsCycle) {
+                    int nbStations = (int)(tempsTotalStation / tempsCycle) + 1;
+                    double tempsTotalParStation = tempsTotalStation / nbStations;
+
+                    // Réallocation pour le nouveau nombre de stations
+                    stations[i].operations = realloc(stations[i].operations, nbStations * sizeof(int));
+                    if (stations[i].operations == NULL) {
+                        perror("Erreur lors de la réallocation pour les opérations d'une nouvelle station");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    int k = j;
+                    for (int s = 1; s <= nbStations; s++) {
+                        double tempsCourant = 0.0;
+                        int index = stations[i].nb_operations;
+                        while (tempsCourant < tempsTotalParStation && k < stations[i].nb_operations) {
+                            tempsCourant += temps[stations[i].operations[k]];
+                            stations[i].operations[index] = stations[i].operations[k];
+                            index++;
+                            k++;
+                        }
+                        stations[i].nb_operations = index;
+                    }
+                    break;
+                }
+                j++;
+            }
         }
     }
 }
@@ -144,51 +220,21 @@ int main() {
         temps[i] = 0.0; // Initialisation des temps à zéro
     }
     lireTempsDepuisFichier(fichierTemps, temps, 100);
-
     Station *stations = regrouperEnStations(&ligne);
-
+    int maxOperation = 0;
     double tempsCycle;
+
     lireTempsCycleDepuisFichier(fichierTempsCycle, &tempsCycle);
 
-    int maxOperation = 0;
+    diviserStations(stations, maxOperation, tempsCycle, temps);
+
     for (int i = 0; i < ligne.nb_contraintes; i++) {
         if (ligne.contraintes[i].operation > maxOperation) {
             maxOperation = ligne.contraintes[i].operation;
         }
     }
 
-    for (int i = 1; i <= maxOperation; i++) {
-        double tempsTotalStation = 0.0;
-        for (int j = 0; j < stations[i].nb_operations; j++) {
-            tempsTotalStation += temps[stations[i].operations[j]];
-        }
-        stations[i].tempsTotal = tempsTotalStation;
-
-        if (stations[i].tempsTotal > tempsCycle) {
-            int nbStations = (int)(stations[i].tempsTotal / tempsCycle) + 1;
-            double tempsTotalParStation = stations[i].tempsTotal / nbStations;
-
-            free(stations[i].operations);
-
-            stations[i].operations = malloc(stations[i].nb_operations * sizeof(int));
-            if (stations[i].operations == NULL) {
-                perror("Erreur lors de l'allocation mémoire pour les opérations d'une nouvelle station");
-                exit(EXIT_FAILURE);
-            }
-
-            int k = 0;
-            for (int s = 1; s <= nbStations; s++) {
-                double tempsCourant = 0.0;
-                while (tempsCourant < tempsTotalParStation && k < stations[i].nb_operations) {
-                    tempsCourant += temps[stations[i].operations[k]];
-                    k++;
-                }
-                stations[i].nb_operations = k;
-            }
-        }
-    }
-
-    afficherTempsStations(stations, maxOperation);
+    afficherStationsFinales(stations, maxOperation, tempsCycle, temps);
 
     free(ligne.contraintes);
     for (int i = 0; i <= maxOperation; i++) {
