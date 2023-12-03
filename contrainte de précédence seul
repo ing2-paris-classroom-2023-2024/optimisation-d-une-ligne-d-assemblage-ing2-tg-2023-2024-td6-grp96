@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct {
+    int predecesseur;
+    int operation;
+} ContraintePrecedence;
+
+typedef struct {
+    ContraintePrecedence *contraintes;
+    int nb_contraintes;
+} LigneAssemblage;
+
+typedef struct {
+    int *operations;
+    int nb_operations;
+    int numStation; // Ajout du champ numStation
+} Station;
+
+void lireContraintesDepuisFichier(const char *fichier, LigneAssemblage *ligne) {
+    FILE *file = fopen(fichier, "r");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier des contraintes de précédence");
+        exit(EXIT_FAILURE);
+    }
+
+    int predecesseur, operation;
+    int nb_contraintes = 0;
+
+    while (fscanf(file, "%d %d", &predecesseur, &operation) == 2) {
+        nb_contraintes++;
+    }
+
+    ligne->contraintes = malloc(nb_contraintes * sizeof(ContraintePrecedence));
+    if (ligne->contraintes == NULL) {
+        perror("Erreur lors de l'allocation mémoire pour les contraintes de précédence");
+        exit(EXIT_FAILURE);
+    }
+
+    rewind(file);
+
+    for (int i = 0; i < nb_contraintes; i++) {
+        fscanf(file, "%d %d", &ligne->contraintes[i].predecesseur, &ligne->contraintes[i].operation);
+    }
+
+    ligne->nb_contraintes = nb_contraintes;
+
+    fclose(file);
+}
+
+void regrouperEnStations(LigneAssemblage *ligne) {
+    int maxOperation = 0;
+    int numStation = 1;
+
+    // Trouver le numéro d'opération maximum
+    for (int i = 0; i < ligne->nb_contraintes; i++) {
+        if (ligne->contraintes[i].operation > maxOperation) {
+            maxOperation = ligne->contraintes[i].operation;
+        }
+    }
+
+    // Initialiser les stations
+    Station *stations = malloc((maxOperation + 1) * sizeof(Station));
+    for (int i = 0; i <= maxOperation; i++) {
+        stations[i].operations = NULL;
+        stations[i].nb_operations = 0;
+        stations[i].numStation = 0; // Initialiser le champ numStation 
+    }
+
+    // Ajouter les opérations aux stations en fonction de leur opération prédécesseur
+    for (int i = 0; i < ligne->nb_contraintes; i++) {
+        int operationPredecesseur = ligne->contraintes[i].predecesseur;
+        int operationActuelle = ligne->contraintes[i].operation;
+
+        // Augmenter la taille du tableau des opérations dans la station
+        stations[operationPredecesseur].operations = realloc(stations[operationPredecesseur].operations,
+                                                             (stations[operationPredecesseur].nb_operations + 1) * sizeof(int));
+
+        // Ajouter l'opération à la station
+        stations[operationPredecesseur].operations[stations[operationPredecesseur].nb_operations] = operationActuelle;
+        stations[operationPredecesseur].nb_operations++;
+
+        // Mettre à jour le numéro de la station seulement si c'est la première opération dans la station
+        if (stations[operationPredecesseur].numStation == 0) {
+            stations[operationPredecesseur].numStation = numStation;
+            numStation++;
+        }
+
+        // Afficher le regroupement en stations
+        printf("Station %d : ", stations[operationPredecesseur].numStation);
+        for (int j = 0; j < stations[operationPredecesseur].nb_operations; j++) {
+            printf("%d ", stations[operationPredecesseur].operations[j]);
+        }
+        printf("\n");
+    }
+
+    // Libérer la mémoire
+    for (int i = 1; i <= maxOperation; i++) {
+        free(stations[i].operations);
+    }
+    free(stations);
+}
+
+int main() {
+    LigneAssemblage ligne;
+    const char *fichierContraintes = "precedences.txt";
+
+    lireContraintesDepuisFichier(fichierContraintes, &ligne);
+
+    regrouperEnStations(&ligne);
+
+    free(ligne.contraintes);
+
+    return 0;
+}
