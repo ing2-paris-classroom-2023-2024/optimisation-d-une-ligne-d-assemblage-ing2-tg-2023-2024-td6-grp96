@@ -1,1 +1,39 @@
-start
+/// main en appliquant les contraintes de précédence et de emps de cycle ///
+
+int main() {
+    LigneAssemblage ligne;
+    const char *fichierContraintes = "precedences.txt";
+    const char *fichierTemps = "operations.txt";
+    const char *fichierTempsCycle = "temps_cycle.txt";
+
+    lireContraintesDepuisFichier(fichierContraintes, &ligne);
+
+    double temps[100]; // Adapté à la taille de vos opérations
+    for (int i = 0; i < 100; i++) {
+        temps[i] = 0.0; // Initialisation des temps à zéro
+    }
+    lireTempsDepuisFichier(fichierTemps, temps, 100);
+    Station *stations = regrouperEnStations(&ligne);
+    int maxOperation = 0;
+    double tempsCycle;
+
+    lireTempsCycleDepuisFichier(fichierTempsCycle, &tempsCycle);
+
+    diviserStations(stations, maxOperation, tempsCycle, temps);
+
+    for (int i = 0; i < ligne.nb_contraintes; i++) {
+        if (ligne.contraintes[i].operation > maxOperation) {
+            maxOperation = ligne.contraintes[i].operation;
+        }
+    }
+
+    afficherStationsFinales(stations, maxOperation, tempsCycle, temps);
+
+    free(ligne.contraintes);
+    for (int i = 0; i <= maxOperation; i++) {
+        free(stations[i].operations);
+    }
+    free(stations);
+
+    return 0;
+}
