@@ -1,168 +1,200 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-// Structure pour représenter une paire d'opérations
-// structt
 typedef struct {
-    int op1;
-    int op2;
-} Precedence;
+    int predecesseur;
+    int operation;
+} ContraintePrecedence;
 
-// Fonction pour vérifier les contraintes de précédence et de temps de cycle
-int verifierContraintes(FILE *fichierPrecedences, FILE *fichierOperations, FILE *fichierTempsCycle, int nombreOperations) {
-    // Lire le nombre d'arcs du graphe de précédence depuis le fichier
-    int nombreArcs;
-    fscanf(fichierPrecedences, "%d", &nombreArcs);
+typedef struct {
+    ContraintePrecedence *contraintes;
+    int nb_contraintes;
+} LigneAssemblage;
 
-    // Créer une matrice d'adjacence pour représenter le graphe de précédence
-    int **graphe = malloc(nombreOperations * sizeof(int *));
-    for (int i = 0; i < nombreOperations; i++) {
-        graphe[i] = malloc(nombreOperations * sizeof(int));
-        for (int j = 0; j < nombreOperations; j++) {
-            graphe[i][j] = 0;
+typedef struct {
+    int *operations;
+    int nb_operations;
+    int numStation;
+    double tempsTotal;
+} Station;
+
+void lireContraintesDepuisFichier(const char *fichier, LigneAssemblage *ligne) {
+    FILE *file = fopen(fichier, "r");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier des contraintes de precedence");
+        exit(EXIT_FAILURE);
+    }
+
+    int predecesseur, operation;
+    int nb_contraintes = 0;
+
+    while (fscanf(file, "%d %d", &predecesseur, &operation) == 2) {
+        nb_contraintes++;
+    }
+
+    ligne->contraintes = malloc(nb_contraintes * sizeof(ContraintePrecedence));
+    if (ligne->contraintes == NULL) {
+        perror("Erreur lors de l'allocation mémoire pour les contraintes de précédence");
+        exit(EXIT_FAILURE);
+    }
+
+    rewind(file);
+
+    for (int i = 0; i < nb_contraintes; i++) {
+        fscanf(file, "%d %d", &ligne->contraintes[i].predecesseur, &ligne->contraintes[i].operation);
+    }
+
+    ligne->nb_contraintes = nb_contraintes;
+
+    fclose(file);
+}
+
+void lireTempsDepuisFichier(const char *fichier, double *temps, int taille) {
+    FILE *file = fopen(fichier, "r");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier des temps d'opérations");
+        exit(EXIT_FAILURE);
+    }
+
+    int operation;
+    double tempsOperation;
+
+    while (fscanf(file, "%d %lf", &operation, &tempsOperation) == 2) {
+        temps[operation] = tempsOperation;
+    }
+
+    fclose(file);
+}
+
+void lireTempsCycleDepuisFichier(const char *fichier, double *tempsCycle) {
+    FILE *file = fopen(fichier, "r");
+    if (file == NULL) {
+        perror("Erreur lors de l'ouverture du fichier des temps de cycle");
+        exit(EXIT_FAILURE);
+    }
+
+    fscanf(file, "%lf", tempsCycle);
+
+    fclose(file);
+}
+
+Station* regrouperEnStations(LigneAssemblage *ligne) {
+    int maxOperation = 0;
+    int numStation = 1;
+
+    for (int i = 0; i < ligne->nb_contraintes; i++) {
+        if (ligne->contraintes[i].operation > maxOperation) {
+            maxOperation = ligne->contraintes[i].operation;
         }
     }
 
-    // Lire les arcs du graphe de précédence depuis le fichier
-    Precedence *arcs = malloc(nombreArcs * sizeof(Precedence));
-    for (int i = 0; i < nombreArcs; i++) {
-        fscanf(fichierPrecedences, "%d %d", &arcs[i].op1, &arcs[i].op2);
-        graphe[arcs[i].op1 - 1][arcs[i].op2 - 1] = 1; // Mettre à jour la matrice d'adjacence
+    Station *stations = malloc((maxOperation + 1) * sizeof(Station));
+    for (int i = 0; i <= maxOperation; i++) {
+        stations[i].operations = NULL;
+        stations[i].nb_operations = 0;
+        stations[i].numStation = 0;
+        stations[i].tempsTotal = 0.0;
     }
 
-    // Vérifier les contraintes de précédence
-    for (int i = 0; i < nombreArcs; i++) {
-        if (!graphe[arcs[i].op1 - 1][arcs[i].op2 - 1]) {
-            printf("Violation de la contrainte de précédence : Opération %d doit précéder Opération %d\n", arcs[i].op1, arcs[i].op2);
-            return 1; // Indiquer une violation
+    for (int i = 0; i < ligne->nb_contraintes; i++) {
+        int operationPredecesseur = ligne->contraintes[i].predecesseur;
+        int operationActuelle = ligne->contraintes[i].operation;
+
+        stations[operationPredecesseur].operations = realloc(stations[operationPredecesseur].operations,
+                                                             (stations[operationPredecesseur].nb_operations + 1) * sizeof(int));
+        stations[operationPredecesseur].operations[stations[operationPredecesseur].nb_operations] = operationActuelle;
+        stations[operationPredecesseur].nb_operations++;
+
+        if (stations[operationPredecesseur].numStation == 0) {
+            stations[operationPredecesseur].numStation = numStation;
+            numStation++;
         }
     }
 
-    // Lire le temps de cycle depuis le fichier
-    double tempsCycle;
-    fscanf(fichierTempsCycle, "%lf", &tempsCycle);
+    return stations;
+}
 
-    // Lire les temps d'exécution des opérations depuis le fichier
-    double *tempsExecution = malloc(nombreOperations * sizeof(double));
-    for (int i = 0; i < nombreOperations; i++) {
-        int operation;
-        double temps;
-        fscanf(fichierOperations, "%d %lf", &operation, &temps);
-        tempsExecution[operation - 1] = temps;
+void afficherTempsStations(Station *stations, int maxOperation) {
+    double temps[100]; // Adapté à la taille de vos opérations
+    for (int i = 0; i < 100; i++) {
+        temps[i] = 0.0; // Initialisation des temps à zéro
     }
-
-    // Vérifier la contrainte de temps de cycle
-    double tempsTotal = 0;
-    for (int i = 0; i < nombreOperations; i++) {
-        for (int j = 0; j < nombreOperations; j++) {
-            if (graphe[i][j]) {
-                tempsTotal += tempsExecution[j];
+    for (int i = 1; i <= maxOperation; i++) {
+        if (stations[i].numStation != 0) {
+            double tempsTotalStation = 0.0;
+            for (int j = 0; j < stations[i].nb_operations; j++) {
+                tempsTotalStation += temps[stations[i].operations[j]];
             }
+            stations[i].tempsTotal = tempsTotalStation;
+            printf("Station %d - Temps total : %.2f\n", stations[i].numStation, stations[i].tempsTotal);
         }
-        if (tempsTotal > tempsCycle) {
-            printf("Violation de la contrainte de temps de cycle à la station %d\n", i + 1);
-            free(arcs);
-            free(tempsExecution);
-            return 1; // Indiquer une violation
-        }
-        tempsTotal = 0; // Réinitialiser le temps total pour la station suivante
     }
-    printf("La contrainte de temps de cyle est respectee\n");
-
-
-    // Libération de la mémoire
-    free(arcs);
-    free(tempsExecution);
-    for (int i = 0; i < nombreOperations; i++) {
-        free(graphe[i]);
-    }
-    free(graphe);
-
-    return 0; // Aucune violation détectée
 }
 
 int main() {
-    // Exemple d'utilisation
-    FILE *fichierPrecedences = fopen("precedences.txt", "r");
-    FILE *fichierOperations = fopen("operations.txt", "r");
-    FILE *fichierTempsCycle = fopen("temps_cycle.txt", "r");
+    LigneAssemblage ligne;
+    const char *fichierContraintes = "precedences.txt";
+    const char *fichierTemps = "operations.txt";
+    const char *fichierTempsCycle = "temps_cycle.txt";
 
-    if (fichierPrecedences == NULL || fichierOperations == NULL || fichierTempsCycle == NULL) {
-        perror("Erreur lors de l'ouverture des fichiers");
-        return EXIT_FAILURE;
+    lireContraintesDepuisFichier(fichierContraintes, &ligne);
+
+    double temps[100]; // Adapté à la taille de vos opérations
+    for (int i = 0; i < 100; i++) {
+        temps[i] = 0.0; // Initialisation des temps à zéro
+    }
+    lireTempsDepuisFichier(fichierTemps, temps, 100);
+
+    Station *stations = regrouperEnStations(&ligne);
+
+    double tempsCycle;
+    lireTempsCycleDepuisFichier(fichierTempsCycle, &tempsCycle);
+
+    int maxOperation = 0;
+    for (int i = 0; i < ligne.nb_contraintes; i++) {
+        if (ligne.contraintes[i].operation > maxOperation) {
+            maxOperation = ligne.contraintes[i].operation;
+        }
     }
 
-    // Nombre d'opérations (à adapter selon votre modèle)
-    int nombreOperations = 35;
+    for (int i = 1; i <= maxOperation; i++) {
+        double tempsTotalStation = 0.0;
+        for (int j = 0; j < stations[i].nb_operations; j++) {
+            tempsTotalStation += temps[stations[i].operations[j]];
+        }
+        stations[i].tempsTotal = tempsTotalStation;
 
-    int violation = verifierContraintes(fichierPrecedences, fichierOperations, fichierTempsCycle, nombreOperations);
+        if (stations[i].tempsTotal > tempsCycle) {
+            int nbStations = (int)(stations[i].tempsTotal / tempsCycle) + 1;
+            double tempsTotalParStation = stations[i].tempsTotal / nbStations;
 
-    if (violation) {
-        printf("Il y a des violations des contraintes.\n");
-        exit(EXIT_FAILURE);
-    } else {
-        printf("Aucune violation des contraintes.\n");
+            free(stations[i].operations);
+
+            stations[i].operations = malloc(stations[i].nb_operations * sizeof(int));
+            if (stations[i].operations == NULL) {
+                perror("Erreur lors de l'allocation mémoire pour les opérations d'une nouvelle station");
+                exit(EXIT_FAILURE);
+            }
+
+            int k = 0;
+            for (int s = 1; s <= nbStations; s++) {
+                double tempsCourant = 0.0;
+                while (tempsCourant < tempsTotalParStation && k < stations[i].nb_operations) {
+                    tempsCourant += temps[stations[i].operations[k]];
+                    k++;
+                }
+                stations[i].nb_operations = k;
+            }
+        }
     }
 
-    fclose(fichierPrecedences);
-    fclose(fichierOperations);
-    fclose(fichierTempsCycle);
+    afficherTempsStations(stations, maxOperation);
+
+    free(ligne.contraintes);
+    for (int i = 0; i <= maxOperation; i++) {
+        free(stations[i].operations);
+    }
+    free(stations);
+
     return 0;
 }
-
-/*
-# Fonction pour lire les opérations à partir du fichier
-def lire_fichier_operations(chemin_fichier):
-    operations = {}
-    with open(chemin_fichier, 'r') as fichier:
-        for ligne in fichier:
-            ligne = ligne.strip().split()
-            num_operation, temps_execution = int(ligne[0]), float(ligne[1])
-            operations[num_operation] = temps_execution
-    return operations
-
-# Fonction pour lire les précédences à partir du fichier
-def lire_fichier_precedences(chemin_fichier):
-    precedences = []
-    with open(chemin_fichier, 'r') as fichier:
-        for ligne in fichier:
-            ligne = ligne.strip().split()
-            operation_precedente, operation_suivante = int(ligne[0]), int(ligne[1])
-            precedences.append((operation_precedente, operation_suivante))
-    return precedences
-
-# Fonction pour lire le temps de cycle à partir du fichier
-def lire_temps_cycle(chemin_fichier):
-    with open(chemin_fichier, 'r') as fichier:
-        temps_cycle = float(fichier.read().strip())
-    return temps_cycle
-
-
-# Fonction principale pour parcourir le graphe et vérifier le temps de cycle
-def parcourir_graphe(operations, precedences, temps_cycle):
-    for branche in precedences:
-        temps_branche = 0
-        for operation in branche:
-            temps_branche += operations[operation]
-            if temps_branche > temps_cycle:
-                print(f"La branche {branche} dépasse le temps de cycle !")
-                break
-        else:
-            print(f"La branche {branche} respecte le temps de cycle.")
-
-# Point d'entrée du programme
-if __name__ == "__main__":
-    # Chemins des fichiers
-    chemin_operations = "operations.txt"
-    chemin_precedences = "precedences.txt"
-    chemin_temps_cycle = "temps_cycle.txt"
-
-    # Lecture des données à partir des fichiers
-    operations = lire_fichier_operations(chemin_operations)
-    precedences = lire_fichier_precedences(chemin_precedences)
-    temps_cycle = lire_temps_cycle(chemin_temps_cycle)
-
-    # Appel de la fonction principale
-    parcourir_graphe(operations, precedences, temps_cycle)
-*/
